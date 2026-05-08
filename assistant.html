@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ассистент — Напоминания</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #111; color: #e5e5e5; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    font-size: 14px; line-height: 1.5; min-height: 100vh;
+  }
+  .wrap { max-width: 620px; margin: 0 auto; padding: 40px 24px 80px; }
+  .header { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 12px; margin-bottom: 28px; }
+  .clock { font-size: 52px; font-weight: 200; letter-spacing: -2px; line-height: 1; color: #fff; }
+  .clock-sub { font-size: 13px; color: #555; margin-top: 4px; text-transform: capitalize; }
+  .header-right { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; padding-top: 6px; }
+  .badge { background: #fff; color: #111; border-radius: 99px; padding: 3px 12px; font-size: 12px; font-weight: 700; }
+  .notif-btn { background: none; border: 1px solid #333; color: #aaa; border-radius: 99px; padding: 6px 14px; font-size: 12px; cursor: pointer; }
+  .notif-on { font-size: 12px; color: #4ade80; }
+  hr { border: none; border-top: 1px solid #222; margin: 0 0 28px; }
+  .title-row { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; flex-wrap: wrap; gap: 12px; }
+  .title { font-size: 26px; font-weight: 700; letter-spacing: -0.5px; color: #fff; }
+  .title-sub { font-size: 13px; color: #555; margin-top: 2px; }
+  .add-btn { background: #e5e5e5; color: #111; border: none; border-radius: 10px; padding: 10px 20px; font-size: 13px; font-weight: 700; cursor: pointer; transition: background .15s; }
+  .add-btn.open { background: #333; color: #e5e5e5; }
+  .form { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 16px; padding: 22px; margin-bottom: 16px; display: none; }
+  .form.visible { display: block; }
+  .field-label { font-size: 11px; font-weight: 700; color: #555; letter-spacing: 1.2px; text-transform: uppercase; margin-bottom: 7px; margin-top: 14px; display: block; }
+  .field-label:first-child { margin-top: 0; }
+  input[type="text"], input[type="date"], input[type="time"] {
+    width: 100%; background: #222; border: 1px solid #2a2a2a; border-radius: 10px; padding: 11px 14px;
+    font-size: 14px; color: #e5e5e5; outline: none; color-scheme: dark; font-family: inherit;
+  }
+  .row2 { display: flex; gap: 10px; }
+  .row2 > div { flex: 1; }
+  .segmented { display: flex; flex-wrap: wrap; gap: 6px; }
+  .seg { background: #222; border: 1px solid #2a2a2a; border-radius: 8px; padding: 6px 12px; font-size: 12px; color: #777; cursor: pointer; font-family: inherit; transition: all .15s; }
+  .seg.on { background: #2a2a2a; border-color: #555; color: #e5e5e5; }
+  .cat-row { display: flex; flex-wrap: wrap; gap: 6px; }
+  .cat-btn { display: flex; align-items: center; gap: 6px; border: 1px solid #2a2a2a; border-radius: 8px; padding: 6px 12px; font-size: 12px; color: #555; background: transparent; cursor: pointer; font-family: inherit; transition: all .15s; }
+  .cat-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; display: inline-block; }
+  .int-grid { display: flex; gap: 8px; }
+  .int-btn { flex: 1; border: 1px solid #2a2a2a; border-radius: 10px; padding: 12px 10px; background: #111; cursor: pointer; text-align: left; font-family: inherit; transition: all .15s; }
+  .int-btn.on { border: 1.5px solid #e5e5e5; background: #222; }
+  .int-icon { font-size: 18px; margin-bottom: 5px; color: #e5e5e5; }
+  .int-label { font-size: 13px; font-weight: 600; color: #e5e5e5; margin-bottom: 2px; }
+  .int-sub { font-size: 10px; color: #555; line-height: 1.4; }
+  .save-btn { margin-top: 20px; width: 100%; background: #e5e5e5; color: #111; border: none; border-radius: 10px; padding: 13px; font-size: 14px; font-weight: 700; cursor: pointer; font-family: inherit; }
+  .save-btn:disabled { opacity: 0.35; cursor: default; }
+  .banner { display: flex; justify-content: space-between; align-items: center; background: #1f1500; border: 1px solid #3a2a00; border-radius: 10px; padding: 12px 16px; margin-bottom: 16px; font-size: 13px; color: #fbbf24; gap: 12px; flex-wrap: wrap; }
+  .banner-btn { background: #fbbf24; color: #111; border: none; border-radius: 8px; padding: 6px 14px; font-size: 12px; font-weight: 700; cursor: pointer; white-space: nowrap; font-family: inherit; }
+  .tab-row { display: flex; gap: 4px; margin-bottom: 16px; flex-wrap: wrap; align-items: center; }
+  .tab { background: none; border: 1px solid transparent; color: #555; border-radius: 8px; padding: 6px 14px; font-size: 13px; cursor: pointer; font-family: inherit; }
+  .tab.on { border-color: #2a2a2a; color: #e5e5e5; background: #1a1a1a; }
+  .clear-btn { margin-left: auto; background: none; border: none; color: #f87171; font-size: 12px; cursor: pointer; padding: 6px 10px; font-family: inherit; }
+  .empty { text-align: center; padding: 50px 0; color: #444; font-size: 14px; }
+  .empty-sub { font-size: 12px; color: #333; margin-top: 6px; }
+  .card { display: flex; align-items: flex-start; background: #1a1a1a; border: 1px solid #222; border-left: 3px solid #333; border-radius: 12px; padding: 14px 14px 14px 16px; margin-bottom: 8px; gap: 10px; transition: opacity .2s; }
+  .card.done { opacity: 0.38; }
+  .card-main { flex: 1; min-width: 0; }
+  .card-text { font-size: 15px; font-weight: 500; color: #fff; line-height: 1.4; word-break: break-word; }
+  .card-text.done { text-decoration: line-through; }
+  .card-meta { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; margin-top: 6px; font-size: 12px; color: #555; }
+  .sep { color: #333; }
+  .time-left { font-size: 12px; font-weight: 600; margin-top: 5px; }
+  .card-actions { display: flex; flex-direction: column; gap: 4px; flex-shrink: 0; padding-top: 2px; }
+  .icon-btn { background: none; border: none; font-size: 15px; cursor: pointer; padding: 3px 6px; line-height: 1; font-family: inherit; }
+  .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: #e5e5e5; color: #111; border-radius: 99px; padding: 11px 24px; font-size: 13px; font-weight: 600; z-index: 999; white-space: nowrap; box-shadow: 0 4px 24px rgba(0,0,0,.6); pointer-events: none; opacity: 0; transition: opacity .2s; }
+  .toast.show { opacity: 1; }
+  .footer { text-align: center; margin-top: 44px; font-size: 12px; color: #333; }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="header">
+    <div>
+      <div class="clock" id="clock">--:--</div>
+      <div class="clock-sub" id="clock-date"></div>
+    </div>
+    <div class="header-right">
+      <div class="badge" id="badge" style="display:none"></div>
+      <div id="notif-area"></div>
+    </div>
+  </div>
+  <hr>
+  <div class="title-row">
+    <div>
+      <div class="title">Ассистент</div>
+      <div class="title-sub">планировщик напоминаний</div>
+    </div>
+    <button class="add-btn" id="toggle-form">+ Добавить</button>
+  </div>
+
+  <div class="form" id="form">
+    <label class="field-label">Что нужно сделать?</label>
+    <input type="text" id="f-text" placeholder="Название напоминания...">
+    <div class="row2" style="margin-top:14px;">
+      <div>
+        <label class="field-label">Дата</label>
+        <input type="date" id="f-date">
+      </div>
+      <div>
+        <label class="field-label">Время</label>
+        <input type="time" id="f-time">
+      </div>
+    </div>
+    <label class="field-label">Повтор</label>
+    <div class="segmented" id="repeat-btns">
+      <button class="seg on" data-val="none">Без повтора</button>
+      <button class="seg" data-val="daily">Каждый день</button>
+      <button class="seg" data-val="weekly">Каждую неделю</button>
+      <button class="seg" data-val="workdays">По будням</button>
+      <button class="seg" data-val="hourly">Каждый час</button>
+    </div>
+    <label class="field-label">Категория</label>
+    <div class="cat-row" id="cat-btns">
+      <button class="cat-btn on" data-val="personal" style="border-color:#fbbf24;color:#fbbf24;background:#fbbf2415"><span class="cat-dot" style="background:#fbbf24"></span>Личное</button>
+      <button class="cat-btn" data-val="work"><span class="cat-dot" style="background:#60a5fa"></span>Работа</button>
+      <button class="cat-btn" data-val="health"><span class="cat-dot" style="background:#4ade80"></span>Здоровье</button>
+      <button class="cat-btn" data-val="home"><span class="cat-dot" style="background:#f87171"></span>Дом</button>
+      <button class="cat-btn" data-val="sport"><span class="cat-dot" style="background:#c084fc"></span>Спорт</button>
+      <button class="cat-btn" data-val="other"><span class="cat-dot" style="background:#9ca3af"></span>Другое</button>
+    </div>
+    <label class="field-label">Интенсивность</label>
+    <div class="int-grid" id="int-btns">
+      <button class="int-btn" data-val="low"><div class="int-icon">○</div><div class="int-label">Тихое</div><div class="int-sub">1 уведомление</div></button>
+      <button class="int-btn on" data-val="normal"><div class="int-icon">◑</div><div class="int-label">Обычное</div><div class="int-sub">3 раза · каждые 5 мин</div></button>
+      <button class="int-btn" data-val="high"><div class="int-icon">●</div><div class="int-label">Важное</div><div class="int-sub">Каждую минуту · 10 мин</div></button>
+    </div>
+    <button class="save-btn" id="save-btn">Сохранить напоминание</button>
+  </div>
+
+  <div class="banner" id="notif-banner" style="display:none">
+    <span>⚠️ Включите уведомления — иначе напоминания не появятся когда вкладка свёрнута</span>
+    <button class="banner-btn" id="banner-notif-btn">Включить</button>
+  </div>
+  <hr>
+
+  <div class="tab-row">
+    <button class="tab on" data-tab="active" id="tab-active">Активные</button>
+    <button class="tab" data-tab="done" id="tab-done">Выполненные</button>
+    <button class="tab" data-tab="all" id="tab-all">Все</button>
+    <button class="clear-btn" id="clear-done" style="display:none">Очистить</button>
+  </div>
+  <div id="list"></div>
+  <div class="footer" id="footer"></div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const KEY = 'reminders_v5';
+const CATS = { work:'Работа', health:'Здоровье', personal:'Личное', home:'Дом', sport:'Спорт', other:'Другое' };
+const DOTS = { work:'#60a5fa', health:'#4ade80', personal:'#fbbf24', home:'#f87171', sport:'#c084fc', other:'#9ca3af' };
+const REPEATS = { none:'Без повтора', daily:'Каждый день', weekly:'Каждую неделю', workdays:'По будням', hourly:'Каждый час' };
+const INTENSITY = {
+  low:    { label:'Тихое',   sub:'1 уведомление',         icon:'○' },
+  normal: { label:'Обычное', sub:'3 раза · каждые 5 мин', icon:'◑' },
+  high:   { label:'Важное',  sub:'Каждую минуту · 10 мин',icon:'●' },
+};
+
+let items = [];
+let currentTab = 'active';
+let fRepeat = 'none';
+let fCat = 'personal';
+let fInt = 'normal';
+const fired = new Set();
+
+function loadItems() {
+  try { items = JSON.parse(localStorage.getItem(KEY) || '[]'); }
+  catch { items = []; }
+}
+function saveItems() { localStorage.setItem(KEY, JSON.stringify(items)); }
+
+function fmtDt(iso) {
+  const d = new Date(iso), now = new Date(), tom = new Date(now);
+  tom.setDate(now.getDate() + 1);
+  const day = d.toDateString() === now.toDateString() ? 'Сегодня'
+    : d.toDateString() === tom.toDateString() ? 'Завтра'
+    : d.toLocaleDateString('ru-RU', { day:'numeric', month:'short' });
+  return `${day}, ${d.toLocaleTimeString('ru-RU', { hour:'2-digit', minute:'2-digit' })}`;
+}
+function timeLeft(iso) {
+  const d = new Date(iso) - new Date();
+  if (d < 0) return 'просрочено';
+  const m = Math.floor(d / 60000);
+  if (m === 0) return 'меньше минуты';
+  if (m < 60) return `${m} мин`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h} ч ${m % 60} мин`;
+  return `${Math.floor(h/24)} дн`;
+}
+function nextRepeat(iso, repeat) {
+  const d = new Date(iso);
+  if (repeat === 'daily') d.setDate(d.getDate() + 1);
+  else if (repeat === 'weekly') d.setDate(d.getDate() + 7);
+  else if (repeat === 'hourly') d.setHours(d.getHours() + 1);
+  else if (repeat === 'workdays') { d.setDate(d.getDate() + 1); while ([0,6].includes(d.getDay())) d.setDate(d.getDate() + 1); }
+  return d.toISOString();
+}
+
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 4000);
+}
+
+function fireReminder(r) {
+  const send = (msg, delay) => setTimeout(() => {
+    showToast('⏰ ' + msg);
+    if (Notification.permission === 'granted') {
+      try { new Notification('Напоминание', { body: msg }); } catch(e) {}
+    }
+  }, delay || 0);
+  send(r.text);
+  if (r.intensity === 'normal') { send(r.text, 5*60000); send(r.text, 10*60000); }
+  if (r.intensity === 'high') for (let i=1;i<=10;i++) send('⚠️ ' + r.text, i*60000);
+}
+
+setInterval(() => {
+  const now = Date.now();
+  let changed = false;
+  items = items.map(r => {
+    if (r.done || fired.has(r.id)) return r;
+    const diff = Math.abs(new Date(r.datetime).getTime() - now);
+    if (diff > 15000) return r;
+    fired.add(r.id);
+    fireReminder(r);
+    if (r.repeat !== 'none') {
+      changed = true;
+      setTimeout(() => fired.delete(r.id), 30000);
+      return { ...r, datetime: nextRepeat(r.datetime, r.repeat) };
+    }
+    return r;
+  });
+  if (changed) { saveItems(); render(); }
+}, 15000);
+
+function updateClock() {
+  const now = new Date();
+  document.getElementById('clock').textContent = now.toLocaleTimeString('ru-RU', { hour:'2-digit', minute:'2-digit' });
+  document.getElementById('clock-date').textContent = now.toLocaleDateString('ru-RU', { weekday:'long', day:'numeric', month:'long' });
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+function render() {
+  const active = items.filter(r => !r.done);
+  const done   = items.filter(r =>  r.done);
+  const all    = items;
+  const displayed = currentTab === 'active' ? active : currentTab === 'done' ? done : all;
+
+  const badge = document.getElementById('badge');
+  if (active.length > 0) { badge.textContent = active.length; badge.style.display = ''; }
+  else badge.style.display = 'none';
+
+  document.getElementById('tab-active').textContent = `Активные (${active.length})`;
+  document.getElementById('tab-done').textContent   = `Выполненные (${done.length})`;
+  document.getElementById('clear-done').style.display = (currentTab === 'done' && done.length > 0) ? '' : 'none';
+  document.getElementById('footer').textContent = `${items.length} напоминаний · ${done.length} выполнено`;
+
+  const notifArea = document.getElementById('notif-area');
+  const banner = document.getElementById('notif-banner');
+  if (Notification.permission === 'granted') {
+    notifArea.innerHTML = '<div class="notif-on">🔔 Уведомления активны</div>';
+    banner.style.display = 'none';
+  } else {
+    notifArea.innerHTML = '<button class="notif-btn" onclick="reqNotif()">🔔 Включить уведомления</button>';
+    banner.style.display = '';
+  }
+
+  const list = document.getElementById('list');
+  if (displayed.length === 0) {
+    list.innerHTML = `<div class="empty">${currentTab === 'active' ? 'Нет активных напоминаний' : 'Пусто'}${currentTab === 'active' ? '<div class="empty-sub">Нажмите «+ Добавить» чтобы создать первое</div>' : ''}</div>`;
+    return;
+  }
+
+  const now = new Date();
+  list.innerHTML = displayed.map(r => {
+    const past = !r.done && new Date(r.datetime) < now;
+    const iv = INTENSITY[r.intensity] || INTENSITY.normal;
+    const dot = DOTS[r.category] || '#888';
+    const tl = !r.done ? `<div class="time-left" style="color:${past ? '#f87171':'#4ade80'}">${past ? '⚠️ Просрочено' : '⏱ через ' + timeLeft(r.datetime)}</div>` : '';
+    const repeatMeta = r.repeat !== 'none' ? `<span class="sep">·</span><span>${REPEATS[r.repeat]}</span>` : '';
+    return `<div class="card ${r.done?'done':''}" style="border-left-color:${dot}">
+      <div class="card-main">
+        <div class="card-text ${r.done?'done':''}">${esc(r.text)}</div>
+        <div class="card-meta">
+          <span style="color:${dot}">${CATS[r.category]||'Другое'}</span>
+          <span class="sep">·</span><span>${fmtDt(r.datetime)}</span>
+          ${repeatMeta}
+          <span class="sep">·</span><span title="${iv.sub}">${iv.icon} ${iv.label}</span>
+        </div>
+        ${tl}
+      </div>
+      <div class="card-actions">
+        <button class="icon-btn" style="color:#4ade80" onclick="toggle('${r.id}')" title="${r.done?'Вернуть':'Выполнено'}">${r.done?'↩':'✓'}</button>
+        <button class="icon-btn" style="color:#f87171" onclick="del('${r.id}')" title="Удалить">✕</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function toggle(id) { items = items.map(r => r.id === id ? {...r, done: !r.done} : r); saveItems(); render(); }
+function del(id) { items = items.filter(r => r.id !== id); saveItems(); render(); }
+function reqNotif() { Notification.requestPermission().then(p => { if (p === 'granted') showToast('✓ Уведомления включены'); else showToast('Разрешите уведомления в настройках браузера'); render(); }); }
+document.getElementById('banner-notif-btn').onclick = reqNotif;
+
+document.querySelectorAll('.tab').forEach(btn => {
+  btn.onclick = () => {
+    currentTab = btn.dataset.tab;
+    document.querySelectorAll('.tab').forEach(b => b.classList.remove('on'));
+    btn.classList.add('on');
+    render();
+  };
+});
+document.getElementById('clear-done').onclick = () => { items = items.filter(r => !r.done); saveItems(); render(); };
+
+document.getElementById('toggle-form').onclick = () => {
+  const form = document.getElementById('form');
+  const btn = document.getElementById('toggle-form');
+  const visible = form.classList.toggle('visible');
+  btn.textContent = visible ? '✕ Закрыть' : '+ Добавить';
+  btn.classList.toggle('open', visible);
+};
+
+document.getElementById('repeat-btns').addEventListener('click', e => {
+  const btn = e.target.closest('.seg');
+  if (!btn) return;
+  document.querySelectorAll('#repeat-btns .seg').forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
+  fRepeat = btn.dataset.val;
+});
+
+document.getElementById('cat-btns').addEventListener('click', e => {
+  const btn = e.target.closest('.cat-btn');
+  if (!btn) return;
+  document.querySelectorAll('#cat-btns .cat-btn').forEach(b => {
+    b.classList.remove('on'); b.style.borderColor = '#2a2a2a'; b.style.color = '#555'; b.style.background = 'transparent';
+  });
+  btn.classList.add('on');
+  const color = DOTS[btn.dataset.val] || '#888';
+  btn.style.borderColor = color; btn.style.color = color; btn.style.background = color + '15';
+  fCat = btn.dataset.val;
+});
+
+document.getElementById('int-btns').addEventListener('click', e => {
+  const btn = e.target.closest('.int-btn');
+  if (!btn) return;
+  document.querySelectorAll('#int-btns .int-btn').forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
+  fInt = btn.dataset.val;
+});
+
+const now = new Date();
+const pad = n => String(n).padStart(2, '0');
+document.getElementById('f-date').value = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
+const nextH = new Date(now); nextH.setHours(now.getHours() + 1, 0, 0, 0);
+document.getElementById('f-time').value = `${pad(nextH.getHours())}:${pad(nextH.getMinutes())}`;
+
+document.getElementById('save-btn').addEventListener('click', () => {
+  const text = document.getElementById('f-text').value.trim();
+  const date = document.getElementById('f-date').value;
+  const time = document.getElementById('f-time').value;
+  if (!text || !date || !time) { showToast('⚠️ Заполните все поля'); return; }
+  const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  const datetime = new Date(`${date}T${time}`).toISOString();
+  items.push({ id, text, datetime, repeat: fRepeat, category: fCat, intensity: fInt, done: false });
+  saveItems(); render();
+  document.getElementById('f-text').value = '';
+  document.getElementById('toggle-form').click();
+  showToast('✓ Напоминание сохранено');
+});
+
+loadItems();
+render();
+</script>
+</body>
+</html>
